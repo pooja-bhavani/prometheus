@@ -1,26 +1,21 @@
-name: AWS example workflow
+name: GitHub AWS OIDC
 on:
-  push
-env:
-  BUCKET_NAME : "BUCKET-NAME"
-  AWS_REGION : "AWS-REGION"
-# permission can be added at job level or workflow level
+  push:
+    branches: [oidc-test]
+ 
 permissions:
-  id-token: write   # This is required for requesting the JWT
-  contents: read    # This is required for actions/checkout
+  id-token: write
+  contents: read
+
 jobs:
-  S3PackageUpload:
+  run_job_with_aws:
     runs-on: ubuntu-latest
     steps:
-      - name: Git clone the repository
-        uses: actions/checkout@v5
-      - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
-        with:
-          role-to-assume: ROLE-TO-ASSUME
-          role-session-name: samplerolesession
-          aws-region: ${{ env.AWS_REGION }}
-      # Upload a file to AWS s3
-      - name: Copy index.html to s3
-        run: |
-          aws s3 cp ./index.html s3://${{ env.BUCKET_NAME }}/
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@4 # Or a specific version
+        with: 
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}  # Role ARN you created in step 2
+          aws-region: ap-south-1
+  
+      - name: Test AWS Credentials
+        run: aws sts get-caller-identity   
