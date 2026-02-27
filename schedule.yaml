@@ -1,0 +1,11 @@
+name: Scheduled CI
+
+on:
+  schedule:
+    - cron: '* * * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Running on schedule"
