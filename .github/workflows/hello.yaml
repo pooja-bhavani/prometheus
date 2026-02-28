@@ -1,0 +1,11 @@
+name: Hello World
+
+on: push # Triggers the workflow when you push the changes
+
+jobs:
+  hello-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Say Hello
+        run: echo "Hello, World! 🚀"
