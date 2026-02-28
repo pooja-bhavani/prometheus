@@ -1,0 +1,147 @@
+name: Marketplace Actions Demo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ===================================================
+  # JOB 1: SETUP ACTIONS (MOST COMMON)
+  # ===================================================
+  setup-actions:
+    name: Setup Actions Demo
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Input parameters customize the action's behavior
+          node-version: 'lts/*'     # Specific Node.js version
+          cache: 'npm'           # Enable npm dependency caching
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'  # Specific Python version
+          cache: 'pip'           # Enable pip dependency caching
+      
+      # Verify our installations worked
+      - name: Verify setups
+        run: |
+          echo "Node: $(node --version)"
+          echo "Python: $(python --version)"
+          
+  caching:
+    name: Caching Demo
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+     
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          # What to cache: npm dependencies directory
+          path: ~/.npm
+          
+          # Cache key: unique identifier based on OS and package-lock.json
+          # If package-lock.json changes, a new cache is created
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          
+          # Fallback keys: used if exact match isn't found
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Install dependencies
+        run: |
+          echo "Dependencies would be installed here"
+          echo "Cache will speed up subsequent runs"
+          # In a real workflow: npm ci
+  artifacts:
+    name: Artifacts Demo
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Create some example files to upload
+      - name: Create build files
+        run: |
+          mkdir -p build
+          echo "Build output" > build/app.js
+          echo "Documentation" > build/README.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files        # Artifact name for reference
+          path: build/             # Files/directories to upload
+          retention-days: 7        # How long to keep the artifact
+          
+  use-artifacts:
+    name: Use Artifacts Demo
+    runs-on: ubuntu-latest
+    # LEARNING POINT: Job dependencies with 'needs'
+    # This job will only run after the 'artifacts' job completes
+    needs: artifacts
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-files        # Must match the upload name
+          path: downloaded/        # Where to save the files
+      
+      # Verify we got the files
+      - name: List downloaded files
+        run: |
+          echo "Downloaded files:"
+          ls -la downloaded/
+
+  code-quality:
+    name: Code Quality Demo
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+   
+      - name: Run Super Linter
+        uses: github/super-linter@v4
+        env:
+          # Configure the linter through environment variables
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # For GitHub API access
+          VALIDATE_ALL_CODEBASE: false               # Only changed files
+          VALIDATE_YAML: true                        # Enable YAML linting
+          VALIDATE_JSON: true                        # Enable JSON linting
+        # LEARNING POINT: continue-on-error prevents workflow failure
+        continue-on-error: true  # Don't fail workflow if linting fails
+
+  security:
+    name: Security Demo
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript    # Language to analyze
+        continue-on-error: true
+      
+      # LEARNING POINT: Multi-step actions often have separate steps
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        continue-on-error: true
