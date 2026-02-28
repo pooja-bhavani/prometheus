@@ -1,174 +1,127 @@
 # ===================================================
 # NODE.JS CI/CD COMPLETE WORKFLOW - MODULE 3
 # ===================================================
-# LEARNING OBJECTIVES:
-# - Build a complete CI/CD pipeline for a Node.js application
-# - Implement code quality checks, testing, and deployment
-# - Use matrix testing across multiple Node.js versions
-# - Build and push Docker images
-# - Deploy to EC2 using SSH
-# ===================================================
 
 name: Node.js CICD
 
-# ===================================================
-# TRIGGERS: When should this workflow run?
-# ===================================================
 on:
-  # Run when code is pushed to main branch
   push:
     branches: [ main ]
-
-  # Allow manual triggering from Actions tab
   workflow_dispatch:
 
-# ===================================================
-# JOBS: Define the pipeline stages
-# ===================================================
 jobs:
   # ===================================================
   # JOB 1: CODE QUALITY (LINTING)
   # ===================================================
-  # LEARNING POINT: Start with code quality checks
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
     
     steps:
-    # LEARNING POINT: Checkout code from a specific repository
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        # LEARNING POINT: You can specify a different repository than the current one
-        repository: Amitabh-DevOps/Project-03-Jenkins-CI-CD-Project-Todo-node-app
-        ref: master  # Specify branch or commit
-    
-    # LEARNING POINT: Setup Node.js environment with caching
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'  # Enable dependency caching
-    
-    # LEARNING POINT: Install dependencies using clean install
-    - name: Install dependencies
-      run: npm ci  # Faster and more reliable than npm install
-
-    # LEARNING POINT: Install specific development dependencies
-    - name: Install ESLint dependencies
-      run: npm install --save-dev eslint @eslint/js globals
-      
-    # LEARNING POINT: Run linting with auto-fix and continue even if it fails
-    - name: Run linting with auto-fix
-      run: npm run lint:fix || true  # The || true ensures the workflow continues even if linting fails
-      
-  # ===================================================
-  # JOB 2: TESTING WITH MATRIX STRATEGY
-  # ===================================================
-  # LEARNING POINT: Test across multiple Node.js versions
-  test:
-    name: Test (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    # LEARNING POINT: This job depends on the lint job
-    needs: lint
-    
-    # LEARNING POINT: Matrix strategy creates multiple job variations
-    strategy:
-      matrix:
-        # This creates 3 parallel jobs with different Node versions
-        node-version: [18, 20, 22]
-    
-    steps:
-    # LEARNING POINT: Checkout code again (each job runs on a fresh runner)
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         repository: Amitabh-DevOps/Project-03-Jenkins-CI-CD-Project-Todo-node-app
         ref: master
     
-    # LEARNING POINT: Setup Node.js with version from matrix
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install ESLint dependencies
+      run: npm install --save-dev eslint @eslint/js globals
+      
+    - name: Run linting with auto-fix
+      run: npm run lint:fix || true
+      
+  # ===================================================
+  # JOB 2: TESTING WITH MATRIX STRATEGY
+  # ===================================================
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        repository: Amitabh-DevOps/Project-03-Jenkins-CI-CD-Project-Todo-node-app
+        ref: master
+    
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
-        # Use the version from the matrix
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     
-    # LEARNING POINT: Install dependencies for each Node version
     - name: Install dependencies
       run: npm ci
     
-    # LEARNING POINT: Run tests on each Node version
     - name: Run tests
       run: npm test
 
   # ===================================================
   # JOB 3: BUILD AND PUSH DOCKER IMAGE
   # ===================================================
-  # LEARNING POINT: Build and publish Docker image
   build:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    # LEARNING POINT: Only build after tests pass
     needs: test
   
     steps:
-      # LEARNING POINT: Checkout code for Docker build
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           repository: Amitabh-DevOps/Project-03-Jenkins-CI-CD-Project-Todo-node-app
           ref: master
   
-      # LEARNING POINT: Setup Docker Buildx for multi-platform builds
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
   
-      # LEARNING POINT: Authenticate with Docker Hub using secrets
+      # ✅ FIXED HERE
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          # LEARNING POINT: Using repository secrets for credentials
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
   
-      # LEARNING POINT: Build Docker image
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/todo-node-app-ci:latest .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/todo-node-app-ci:latest .
   
-      # LEARNING POINT: Push image to Docker Hub
       - name: Push Docker image
         run: |
-          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/todo-node-app-ci:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/todo-node-app-ci:latest
   
   # ===================================================
   # JOB 4: DEPLOY TO EC2 INSTANCE
   # ===================================================
-  # LEARNING POINT: Deploy application to production
   deploy:
     name: Deploy to EC2 (Docker)
     runs-on: ubuntu-latest
-    # LEARNING POINT: Only deploy after successful build
     needs: build
   
     steps:
-      # LEARNING POINT: SSH into EC2 and run deployment commands
       - name: SSH into EC2 and deploy Docker container
         uses: appleboy/ssh-action@v1.1.0
         with:
-          # LEARNING POINT: Using secrets for sensitive connection details
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # LEARNING POINT: Multi-line script for deployment
           script: |
-            # Update system
             echo "Updating system..."
             sudo apt update -y
 
-            # LEARNING POINT: Conditional installation of Docker
-            # Install Docker if not present
             if ! command -v docker &> /dev/null
             then
               echo "Installing Docker..."
@@ -178,34 +131,18 @@ jobs:
               sudo usermod -aG docker ubuntu
             fi
   
-            # LEARNING POINT: Pull the latest Docker image
             echo "Pulling latest Docker image..."
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/todo-node-app-ci:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/todo-node-app-ci:latest
   
-            # LEARNING POINT: Stop & remove existing container
-            # The || true ensures the script continues even if the container doesn't exist
             echo "Stopping old container..."
             docker stop todo-app || true
             docker rm todo-app || true
   
-            # LEARNING POINT: Run the new container
             echo "Starting new container..."
-            docker run -d --name todo-app -p 8000:8000 ${{ secrets.DOCKER_HUB_USERNAME }}/todo-node-app-ci:latest
+            docker run -d --name todo-app -p 8000:8000 \
+              ${{ secrets.DOCKER_USERNAME }}/todo-node-app-ci:latest
 
-            # LEARNING POINT: Print success message with application URL
             echo "-------------------------------------------------"
             echo "Your app is deployed successfully!"
             echo "Visit: http://<EC2_Public_Url>:8000"
             echo "-------------------------------------------------"
-
-# ===================================================
-# WORKFLOW SUMMARY:
-# ===================================================
-# 1. Lint: Check code quality
-# 2. Test: Run tests on multiple Node.js versions
-# 3. Build: Create and push Docker image
-# 4. Deploy: Deploy to EC2 using Docker
-#
-# This workflow demonstrates a complete CI/CD pipeline
-# from code quality to production deployment.
-# ===================================================
