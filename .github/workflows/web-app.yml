@@ -2,7 +2,7 @@ name: Simple WebApp Pipeline
 
 on:
   push:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-run-push:
