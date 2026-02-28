@@ -28,7 +28,7 @@ jobs:
         run: |
           node server.js &
           sleep 5
-          curl http://localhost:3000
+          curl http://localhost:3000 
 
       # 5️⃣ Build Docker image
       - name: Build Docker image
