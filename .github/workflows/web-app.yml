@@ -1,22 +1,46 @@
-name: Run Web App
+name: Simple WebApp Pipeline
 
-on: push
+on:
+  push:
+    branches: [ main ]
 
 jobs:
-  run-app:
+  build-run-push:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Node
+      # 2️⃣ Setup Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: npm install
 
-      - name: Start app
-        run: npm start
+      # 4️⃣ Run web app (test it works)
+      - name: Start server briefly
+        run: |
+          node server.js &
+          sleep 5
+          curl http://localhost:3000
+
+      # 5️⃣ Build Docker image
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/simple-webapp:latest .
+
+      # 6️⃣ Login to DockerHub
+      - name: Docker login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 7️⃣ Push Docker image
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/simple-webapp:latest
