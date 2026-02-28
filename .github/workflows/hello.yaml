@@ -9,3 +9,10 @@ jobs:
     steps:
       - name: Say Hello
         run: echo "Hello, World! 🚀"
+
+  test-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: test hello-world
+        run: echo "Running tests ✅"
+
