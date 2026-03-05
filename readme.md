@@ -64,3 +64,21 @@ The CI/CD pipeline enforces **9 sequential security gates** before any code reac
       sudo newgrp docker
       sudo snap install aws-cli --classic
       ```
+**AI Engine Tier (Ollama)**:
+   - Deploy a dedicated Ubuntu EC2 instance.
+   - Open Inbound Port `11434` from the Application EC2 Security Group.
+
+      > Better to give `name` to Security Group created.
+    
+      ![ollama-sg](screenshots/8.png)
+
+   - Automate initialization using the [ollama-setup.sh](scripts/ollama-setup.sh) script via EC2 User Data.
+    
+      ![user-data](screenshots/9.png)
+
+   - Verify the AI engine is responsive and the model is pulled in `AI engine EC2`:
+
+     ```bash
+     ollama list
+     ```
+---
