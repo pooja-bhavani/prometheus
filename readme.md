@@ -31,9 +31,6 @@ graph TD
             AppEC2[App EC2 - Ubuntu/Docker]
         end
 
-        subgraph "Data Tier"
-            RDS[(Amazon RDS - MySQL 8.0)]
-        end
 
         subgraph "Artificial Intelligence Tier"
             Ollama[Ollama EC2 - AI Engine]
@@ -45,12 +42,12 @@ graph TD
         end
 
         subgraph "Registry"
-            ECR[Amazon ECR]
+            [DockerHub]
         end
     end
 
     GH -->|1. OIDC Authentication| OIDC
-    GH -->|2. Push Scanned Image| ECR
+    GH -->|2. Push Scanned Image| DockerHub
     GH -->|3. SSH Orchestration| AppEC2
     GH -->|4. DAST Scan| AppEC2
     
