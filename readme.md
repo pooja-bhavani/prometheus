@@ -19,6 +19,48 @@ A high-performance, containerized financial platform built with Spring Boot 3, J
 
 The application is deployed across a multi-tier, segmented AWS environment. The control plane leverages GitHub Actions with integrated security gates at every stage.
 
+```mermaid
+graph TD
+    subgraph "External Control Plane"
+        GH[GitHub Actions]
+        User[User Browser]
+    end
+
+    subgraph "AWS Infrastructure (VPC)"
+        subgraph "Application Tier"
+            AppEC2[App EC2 - Ubuntu/Docker]
+        end
+
+        subgraph "Data Tier"
+            RDS[(Amazon RDS - MySQL 8.0)]
+        end
+
+        subgraph "Artificial Intelligence Tier"
+            Ollama[Ollama EC2 - AI Engine]
+        end
+
+        subgraph "Identity & Secrets"
+            Secrets[AWS Secrets Manager]
+            OIDC[IAM OIDC Provider]
+        end
+
+        subgraph "Registry"
+            ECR[Amazon ECR]
+        end
+    end
+
+    GH -->|1. OIDC Authentication| OIDC
+    GH -->|2. Push Scanned Image| ECR
+    GH -->|3. SSH Orchestration| AppEC2
+    GH -->|4. DAST Scan| AppEC2
+    
+    User -->|Port 8080| AppEC2
+    AppEC2 -->|JDBC Connection| RDS
+    AppEC2 -->|REST Integration| Ollama
+    AppEC2 -->|Runtime Secrets| Secrets
+    AppEC2 -->|Pull Image| ECR
+```
+
 ---
 
 ## Security Pipeline (DevSecOps Pipeline)
@@ -33,7 +75,7 @@ The CI/CD pipeline enforces **9 sequential security gates** before any code reac
 | 4 | SCA | OWASP Dependency Check (first time run can take more than 30+ minutes) | Scans Maven dependencies for known CVEs |
 | 5 | Build | Maven | Compiles and packages the application |
 | 6 | Container Scan | Trivy | Scans the Docker image for OS and library vulnerabilities |
-| 7 | Push | DockerHub | Pushes the image only after Trivy passes |
+| 7 | Push | Amazon ECR | Pushes the image only after Trivy passes |
 | 8 | Deploy | SSH / Docker Compose | Automated deployment to AWS EC2 |
 | 9 | DAST | OWASP ZAP | Dynamic attack surface scanning on live app |
 
@@ -45,13 +87,21 @@ The CI/CD pipeline enforces **9 sequential security gates** before any code reac
 - **Security Strategy**: Spring Security, IAM OIDC, Secrets Manager
 - **Persistence Layer**: Amazon RDS for MySQL 8.0 (Dev/Test Tier)
 - **AI Integration**: Ollama (TinyLlama)
-- **DevOps Tooling**: Docker, Docker Compose, DockerHub, GitHub Actions, AWS CLI, jq
-- **Infrastructure**: Amazon EC2, Amazon VPC
+- **DevOps Tooling**: Docker, Docker Compose, GitHub Actions, AWS CLI, jq
+- **Infrastructure**: Amazon EC2, Amazon ECR, Amazon VPC
+
+---
 
 ## Implementation Phases
 
 ### Phase 1: AWS Infrastructure Initialization
-1. **Application Server (EC2)**:
+
+1. **Container Registry (ECR)**:
+   - Establish a private ECR repository named `devsecops-bankapp`.
+
+      ![ECR](screenshots/2.png)
+
+2. **Application Server (EC2)**:
 
    - Deploy an Ubuntu 22.04 instance with below `User Data`.
 
@@ -64,21 +114,12 @@ The CI/CD pipeline enforces **9 sequential security gates** before any code reac
       sudo newgrp docker
       sudo snap install aws-cli --classic
       ```
-**AI Engine Tier (Ollama)**:
-   - Deploy a dedicated Ubuntu EC2 instance.
-   - Open Inbound Port `11434` from the Application EC2 Security Group.
+
+   - Configure Security Group to open inbound rule for Port 22 (Management) and Port 8080 (Service).
 
       > Better to give `name` to Security Group created.
-    
-      ![ollama-sg](screenshots/8.png)
 
-   - Automate initialization using the [ollama-setup.sh](scripts/ollama-setup.sh) script via EC2 User Data.
-    
-      ![user-data](screenshots/9.png)
-
-   - Verify the AI engine is responsive and the model is pulled in `AI engine EC2`:
-
-     ```bash
-     ollama list
-     ```
----
+   - Create an IAM Instance Profile(IAM EC2 role) containing permissions:
+     - `AmazonEC2ContainerRegistryPowerUser`
+     - `AWSSecretsManagerClientReadOnlyAccess`
+<img width="2315" height="483" alt="image" src="https://github.com/user-attachments/assets/863ba5cc-08f3-4622-a24e-de68fd5dcf88" />
